@@ -1,5 +1,5 @@
-import enum
-import pickle
+from math import sqrt
+
 import networkx as nx
 import matplotlib.pyplot as plt
 import random
@@ -56,19 +56,21 @@ class RunAlgorithm:
         self._number_of_nodes = number_of_nodes
 
     def _page_rank_algorithm(self, graph, t, p, N):
-        # print('starting page rank algorithm with values: graph = {}, t = {}, p = {}, N = {}'.format(graph.name, t, p, N))
+        print('starting page rank algorithm with values: graph = {}, t = {}, p = {}, N = {}'.format(graph.name, t, p, N))
         d = np.zeros(self._number_of_nodes)
         start_node = random.choice([i for i in range(graph.number_of_nodes())])
         d[start_node] += 1
         current_node = start_node
 
         for i in range(0, t):
-            # print('t =', i)
+
+            if t > pow(2, 16):
+                raise Exception('t is to big, canceling the run')
+
             for j in range(0, int(N)):
                 probability = random.uniform(0, 1)
                 current_node_neighbors = list(graph.neighbors(current_node))
                 # print('node = {}, neighbors = {}'.format(current_node, current_node_neighbors))
-
                 # going to a random node in the graph
                 if probability <= p:
                     current_node = random.choice([i for i in range(graph.number_of_nodes())])
@@ -80,9 +82,6 @@ class RunAlgorithm:
                     else:
                         current_node = random.choice([i for i in range(graph.number_of_nodes())])
 
-
-
-
             # print('finished current walk at node {}'. format(current_node))
             d[current_node] += 1
 
@@ -93,12 +92,32 @@ class RunAlgorithm:
             for p in self._list_of_p:
                 N = 1/p
                 for e in self._list_of_epsilon:
-                    self._run_algorithm_first_base_case(graph, e, N, p)
-                    self.print_runs_data()
+                    try:
+                        self._run_algorithm_first_base_case(graph, e, N, p)
+
+                    except Exception as e:
+                        print(e)
+
+                    print(self.runs_data[-1])
 
                 for k in self._list_of_k:
-                    self._run_algorithm_second_base_case(graph, k, N, p)
-                    self.print_runs_data()
+                    try:
+                        self._run_algorithm_second_base_case(graph, k, N, p)
+
+                    except Exception as e:
+                        print(e)
+
+                    print(self.runs_data[-1])
+
+        self._write_results_to_text_file()
+
+    def _write_results_to_text_file(self):
+        with open('results.txt', 'w') as f:
+            for line in self.runs_data:
+                f.write(str(line))
+                f.write('\n')
+
+
 
     def _run_algorithm_first_base_case(self, graph, e, N, p):
         print('running algorithm first base case with graph = {}, e = {}, N = {}, p = {}'.format(graph.name, e, N, p))
@@ -169,18 +188,39 @@ class RunAlgorithm:
         for datum in self.runs_data:
             print(datum)
 
+
 def generate_graphs():
     graph_list = []
-    q = 1 / pow(2, 9)
-    number_of_nodes = pow(2, 8)
-    name = 'first_family'
-    file_name = '{}_nodes={}_q={}.txt'.format(name, number_of_nodes, q)
-    graph = create_graph_first_type(q, number_of_nodes)
-    graph.name = name
-    nx.write_gpickle(graph, file_name)
-    graph = nx.read_gpickle(file_name)
-    # nx.draw(graph, with_labels=True, node_color='green')
-    graph_list.append(graph)
+    number_of_nodes = pow(2, 9)
+
+    # creating the first-family graph
+    q_list_first_family = [1 / pow(2, 12), 1 / pow(2, 9), 1 / pow(2, 4)]
+    for q in q_list_first_family:
+        name = 'first_family_q=' + str(q)
+        file_name = '{}_nodes={}.txt'.format(name, number_of_nodes, q)
+        # graph = create_graph_first_type(q, number_of_nodes)
+        # graph.name = name
+        # nx.write_gpickle(graph, file_name)
+        graph = nx.read_gpickle(file_name)
+        graph_list.append(graph)
+
+    # creating the second-family graph
+    list_of_nodes_probabilities1 = [1/i for i in range(1, number_of_nodes)]
+    list_of_nodes_probabilities1.insert(0, 1)
+    list_of_nodes_probabilities2 = [1/sqrt(i) for i in range(1, number_of_nodes)]
+    list_of_nodes_probabilities2.insert((0, 1))
+    graph1 = create_graph_second_type(list_of_nodes_probabilities1, number_of_nodes)
+    graph2 = create_graph_second_type(list_of_nodes_probabilities2, number_of_nodes)
+    name_graph_1 = 'second_family_q=1/i'
+    name_graph_2 = 'second_family_q=q/sqrt(i)'
+    file_name1 = '{}_nodes_={}.txt'.format(name_graph_1, number_of_nodes)
+    file_name2 = '{}_nodes_={}.txt'.format(name_graph_2, number_of_nodes)
+    nx.write_gpickle(graph1, file_name1)
+    nx.write_gpickle(graph2, file_name2)
+    graph1 = nx.read_gpickle(file_name1)
+    graph2 = nx.read_gpickle(file_name2)
+    graph_list.append(graph1)
+    graph_list.append(graph2)
 
     return graph_list, number_of_nodes
 
